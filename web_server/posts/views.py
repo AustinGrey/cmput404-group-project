@@ -128,12 +128,15 @@ def retrieve_single_post_with_id(request, post_id):
     :returns: application/json | text/html | image/jpg | image/png
     """
     def get_json(request, posts, pager, pagination_uris):
+        print("Getting single post, returning JSON")
         output = {
             "query": "post",
             "count": 1,
             "size": 1,
-            "posts": [post.to_api_object() for post in posts if check_get_perm(request, post.to_api_object())],
+            # "posts": [post.to_api_object() for post in posts if check_get_perm(request, post.to_api_object())],
+            "posts": [post.to_api_object() for post in posts],
         }
+        print("Finished getting single JSON")
         return JsonResponse(output)
 
     def get_html_or_image(request, posts, pager, pagination_uris):

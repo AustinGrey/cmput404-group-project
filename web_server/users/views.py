@@ -149,9 +149,8 @@ def view_post(request, post_path):
 @login_required
 def view_post_comment(request, post_path):
     """
-    Local handler for viewing a post, the post might be local or foreign, and the path should determine that.
+    Local handler for viewing post comments, the post might be local or foreign, and the path should determine that.
     The first part of the path should be a hostname, and the last part should be the post id
-    If no hostname is provided (no path, only a uuid), then the local server is assumed
     """
     print("GETTING COMMENT")
     path = post_path.split('/')
@@ -217,20 +216,14 @@ def view_post_comment(request, post_path):
             }
         }
 
-        try:
-            node = Node.objects.get(foreign_server_hostname=host)
-        except Node.DoesNotExist as e:
-            return HttpResponse(f"No foreign server with hostname {host} is registered on our server.", status=404)
-
         api = node.foreign_server_api_location
         api = "http://{}/posts/{}/comments/".format(api, post_id)
         if node.append_slash:
             api = api + "/"
-        response = requests.post(api
-            ,
-            auth=(node.username_registered_on_foreign_server, node.password_registered_on_foreign_server),
-            json=output
-        )
+        response = requests.post(api,
+                                 auth=(node.username_registered_on_foreign_server, node.password_registered_on_foreign_server),
+                                 json=output
+                                 )
 
         return HttpResponse(response.text, status=response.status_code)
 
