@@ -970,7 +970,7 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
                         "count": 0,
                         "size": int(size),
                         "posts": [],
-                        "error": error_author_id + 
+                        "error": error_author_id +
                                  f"Unable to get posts using endpoint '{api}': {response.status_code} - {response.content}"
                     }
                     return JsonResponse(response_data)
@@ -984,7 +984,7 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
             total_post = total_post[0]
 
 
-            # accounting that dsnfof post page starts a 0
+            # accounting that dsnfof post page starts at 0
             if node == "dsnfof-test.herokuapp.com":
                 while page < math.ceil(post_total_num / request_size):
                     response = requests.get("{}?size={}&page={}".format(api, request_size, page),

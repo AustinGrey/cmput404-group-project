@@ -332,6 +332,7 @@ def invalidate_friend_requests(author_id):
 # and in the same server
 
 def FOAF_verification(request, author):
+    print(f"FOAF VERIFYING FOR: {request.auth.user} - {author}")
     auth_user = request.user.uid
     auth_user = url_regex.sub("", auth_user).rstrip("/")
     author = url_regex.sub("", author).rstrip("/")
