@@ -337,6 +337,15 @@ def FOAF_verification(request, author):
     auth_user = url_regex.sub("", auth_user).rstrip("/")
     author = url_regex.sub("", author).rstrip("/")
 
+    # Some foreign servers might put dashes into their author uuids, we need to compare against both
+    author_dash_free = author.split('/')
+    author_dash_free[-1] = re.sub('-', '', author_dash_free[-1])
+    author_dash_free = ''.join(author_dash_free)
+
+    if author != author_dash_free:
+        print(f"Removing dashes from author id, {author} -> {author_dash_free}")
+        author = author_dash_free
+
     own_node = request.get_host()
     if auth_user == author:
         return True
