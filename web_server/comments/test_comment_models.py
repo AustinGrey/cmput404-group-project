@@ -20,7 +20,7 @@ class TestCommentModels(TestCase):
                                             last_name="lastname2", bio="authortest2.com", github="github2.com",
                                             is_active=True,
                                             host="127.0.0.1:8000", is_superuser=False,
-                                            is_staff="False", uid="127.0.0.1:8000/author/" + id_str,
+                                            is_staff="False", uid=self.get_author_uid(),
                                             url="http://127.0.0.1:8000/author/" + id_str,
                                             date_joined=datetime(year=2020, month=2, day=26))
 
@@ -32,7 +32,12 @@ class TestCommentModels(TestCase):
 
 
         Comment.objects.create(contentType="text/markdown", content="This is a comment model unit test.",id=comment_id,
-                              author=author, parentPost=post)
+                              author=author.uid, parentPost=post)
+
+    def get_author_uid(self):
+        id = uuid.uuid5(uuid.NAMESPACE_DNS, 'author').hex
+        id_str = str(id)
+        return "127.0.0.1:8000/author/" + id_str
 
     def test_data(self):
         comment_id = uuid.uuid5(uuid.NAMESPACE_DNS, 'comment').hex
@@ -41,21 +46,19 @@ class TestCommentModels(TestCase):
 
         self.assertEqual(comment_test.contentType, "text/markdown")
         self.assertEqual(comment_test.content, "This is a comment model unit test.")
-        self.assertEqual(comment_test.author.id.hex,uuid.uuid5(uuid.NAMESPACE_DNS, 'author').hex)
+        self.assertEqual(comment_test.author, self.get_author_uid())
         self.assertEqual(comment_test.parentPost.id.hex, uuid.uuid5(uuid.NAMESPACE_DNS, 'post').hex)
         self.assertEqual(comment_test.published.astimezone(tz.tzlocal()).date(), published)
 
 
     def test_to_api_object(self):
         comment_id = uuid.uuid5(uuid.NAMESPACE_DNS, 'comment').hex
-        id = uuid.uuid5(uuid.NAMESPACE_DNS, 'author').hex
-        id_str = str(id)
         comment=Comment.objects.get(id=comment_id)
         returndict = comment.to_api_object()
         published = datetime.now().date()
 
         self.assertEqual(returndict['id'], comment_id)
-        self.assertEqual(returndict["author"]["id"], "127.0.0.1:8000/author/"+id_str)
+        self.assertEqual(returndict["author"]["id"], "https://"+self.get_author_uid())
         self.assertEqual(returndict["published"].astimezone(tz.tzlocal()).date(), published)
         self.assertEqual(returndict["contentType"], "text/markdown")
         self.assertEqual(returndict["comment"], "This is a comment model unit test.")

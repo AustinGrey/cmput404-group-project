@@ -1,5 +1,5 @@
 from django.test import TestCase, Client
-from friendship.models import Friend, Follow, FriendRequest
+from friendship.models import Friend,FriendRequest
 from django.urls import reverse
 import uuid
 
@@ -96,7 +96,6 @@ class TestFriendshipModels(TestCase):
 
         Friend.objects.create(author_id=uid1, friend_id=uid2)
         FriendRequest.objects.create(from_id=uid1, to_id=uid2)
-        Follow.objects.create(follower_id=uid1,followee_id=uid2)
 
     def test_data(self):
         id1 = uuid.uuid5(uuid.NAMESPACE_DNS, 'test1').hex
@@ -108,11 +107,8 @@ class TestFriendshipModels(TestCase):
 
         friend_test=Friend.objects.get(author_id=uid1, friend_id=uid2)
         friend_request_test=FriendRequest.objects.get(from_id=uid1, to_id=uid2)
-        follow_test=Follow.objects.get(follower_id=uid1, followee_id=uid2)
 
         self.assertEqual(friend_test.author_id, uid1)
         self.assertEqual(friend_test.friend_id, uid2)
         self.assertEqual(friend_request_test.from_id, uid1)
         self.assertEqual(friend_request_test.to_id, uid2)
-        self.assertEqual(follow_test.follower_id, uid1)
-        self.assertEqual(follow_test.followee_id, uid2)

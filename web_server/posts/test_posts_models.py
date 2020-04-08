@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from django.test import TestCase, Client, override_settings
 from users.models import Author
-from posts.models import Post
+from posts.models import Post,VisibleTo
 from django.urls import reverse
 
 
@@ -37,8 +37,8 @@ class TestPostsModels(TestCase):
         post = Post.objects.create(id=post_id, contentType="text/plain",title="Post Unit Test", source="post@unittest.ca",
                             origin="post@unittest.ca",description="This is a unit test.", content="This is a unit test of Post model.",
                             visibility="FRIENDS", author=Author.objects.get(id=id1),size=1)
-        post.visibleTo.set([author_test])
 
+        VisibleTo.objects.create(author_uid=author_test.uid,accessed_post=post)
 
 
     def test_data(self):
@@ -72,7 +72,7 @@ class TestPostsModels(TestCase):
         self.assertEqual(returndict["contentType"],"text/plain")
         self.assertEqual(returndict["content"],"This is a unit test of Post model.")
         self.assertEqual(returndict["visibility"], "FRIENDS")
-        self.assertEqual(returndict["author"]["id"], "127.0.0.1:8000/author/"+id_str1)
+        self.assertEqual(returndict["author"]["id"], "https://127.0.0.1:8000/author/"+id_str1)
         self.assertEqual(returndict["size"],1)
         self.assertEqual(returndict["visibility"],"FRIENDS")
         self.assertEqual(returndict["visibleTo"][0], "http://"+Author.objects.get(id=uuid.uuid5(uuid.NAMESPACE_DNS, 'test2').hex).uid)
