@@ -171,7 +171,6 @@ def view_post(request, post_path):
             'post': post
         })
     except Exception as e:
-        print(post)
         return HttpResponse(f"The post you are trying to view is on a foreign server, which responded unexpectedly: {post}"
                             f". Which is missing values: {e}",
                             status=500)
@@ -183,7 +182,6 @@ def view_post_comment(request, post_path):
     The first part of the path should be a hostname, and the last part should be the post id
     If no hostname is provided (no path, only a uuid), then the local server is assumed
     """
-    print("GETTING COMMENT")
     path = post_path.split('/')
     host = path[0]
     post_id = path[-1]
@@ -207,7 +205,6 @@ def view_post_comment(request, post_path):
         req = node.make_api_get_request(f'posts/{post_id}/comments')
         comments_list = []
         for comment in req.json()["comments"]:
-            print("\n\n\n\ncomments = ",comment)
             content = {
                 "author": comment["author"],
                 "content": comment["comment"],
@@ -233,9 +230,7 @@ def view_post_comment(request, post_path):
 
         # author_uid = "{}/author/{}".format(settings.HOSTNAME, comment_info["author"]["id"].replace("-", ""))
         author_uid = url_regex.sub("", comment_info["author"]["id"]).rstrip("/")
-        print("POST FOREIGN", author_uid)
         author = Author.objects.get(uid=author_uid)
-        print("author to api", author.to_api_object())
         output = {
             "query": "addComment",
             "post": "http://"+post_path,
@@ -247,7 +242,6 @@ def view_post_comment(request, post_path):
                 "id": str(uuid4())
             }
         }
-        print("output = ", output)
         try:
             node = Node.objects.get(foreign_server_hostname=host)
         except Node.DoesNotExist as e:
@@ -257,7 +251,6 @@ def view_post_comment(request, post_path):
         api = "http://{}/posts/{}/comments".format(api, post_id)
         if node.append_slash:
             api = api + "/"
-        print("api", api, node)
         response = requests.post(api,
             auth=(node.username_registered_on_foreign_server, node.password_registered_on_foreign_server),
             json=output

@@ -54,7 +54,6 @@ class Comment(models.Model):
         Returns a python object that mimics the API, ready to be converted to a JSON string for delivery.
         """
         author_uid = url_regex.sub("", str(self.author)).rstrip("/")
-        print("author_uid = ", author_uid)
         try:
             author = Author.objects.get(uid=author_uid)
             return {
@@ -65,13 +64,9 @@ class Comment(models.Model):
                 "id": str(self.id.hex)
             }
         except Author.DoesNotExist:
-            print("AUTHOR DOES NOT EXISTS")
-            print("calling http://{}/author/profile/{}/".format(settings.HOSTNAME, author_uid))
             response = requests.get(
                 "http://{}/author/profile/{}/".format(settings.HOSTNAME, author_uid)
             )
-            print("got a response")
-            # print(response.body)
             if response.status_code == 200:
                 author_info = response.json()
                 return {
@@ -79,7 +74,6 @@ class Comment(models.Model):
                         "id": author_info["id"],
                         "host": author_info["host"],
                         "displayName": author_info["displayName"],
-
                     },
                     "comment": self.content,
                     "contentType": self.contentType,
