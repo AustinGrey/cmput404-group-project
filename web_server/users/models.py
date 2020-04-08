@@ -62,10 +62,10 @@ class Author(AbstractUser):
 
     def to_api_object(self):
         return {
-            "id": "http://" + self.uid,
-            "host": "http://" + self.host,
+            "id": "https://" + self.uid,
+            "host": "https://" + self.host,
             "displayName": self.display_name,
-            "url": "http://" + self.uid,
+            "url": "https://" + self.uid,
             "github": self.github
         }
 

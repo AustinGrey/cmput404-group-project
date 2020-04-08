@@ -3,6 +3,8 @@
 {% load static %}
 {% load show_markdown %}
 
+<script src="{% static 'js/vue-markdown.js' %}"></script>
+
 <div id="app" class="container-fluid">
     <div class="row">
         <div class="col-sm-1">
@@ -78,7 +80,12 @@
     <a :href="[['{{ post_viewing_url }}' + '{{ local_hostname }}/' + post.id]]"
        class="list-group-item list-group-item-action flex-column align-items-start">
         <div class="d-flex w-100 justify-content-between">
-          <h5 class="mb-1">[[post.title]]</h5>
+          
+          <h5 class="mb-1">
+            <vue-markdown v-if="post.contentType === 'text/markdown'">[[post.title]]</vue-markdown>
+            <span v-else>[[post.title]]</span>
+          </h5>
+
           <small>[[post.published]]</small>
         </div>
         <p v-if="post.contentType == 'image/png;base64'" class="mb-1">
@@ -88,7 +95,8 @@
             <img v-bind:src="'data:' + [[post.contentType]] + ',' + [[post.content]]" style="width: 100px">
         </p>
         <div v-else>
-            <span style="overflow-wrap: break-word;" class="mb-1">[[post.sub_content]]</span>
+            <vue-markdown v-if="post.contentType === 'text/markdown'" style="overflow-wrap: break-word;" class="mb-1">[[post.sub_content]]</vue-markdown>
+            <span v-else style="overflow-wrap: break-word;" class="mb-1">[[post.sub_content]]</span>
         </div>
 
         <small>[[post.author.displayName]]</small>
@@ -103,17 +111,21 @@
     <a :href="[['{{ post_viewing_url }}' + post.host]]"
        class="list-group-item list-group-item-action flex-column align-items-start">
         <div class="d-flex w-100 justify-content-between">
-          <h5 class="mb-1">[[post.title]]</h5>
+          <h5 class="mb-1">
+            <vue-markdown v-if="post.contentType === 'text/markdown'">[[post.title]]</vue-markdown>
+            <span v-else>[[post.title]]</span>
+          </h5>
           <small>[[post.published]]</small>
         </div>
         <p v-if="post.contentType == 'image/png;base64'" class="mb-1">
-            <img v-bind:src="'data:' + [[post.contentType]] + ',' + [[post.content]]" style="width: 100%">
+            <img v-bind:src="'data:' + [[post.contentType]] + ',' + [[post.content]]" style="max-width: 100%">
         </p>
         <p v-else-if="post.contentType == 'image/jpeg;base64'" class="mb-1">
-            <img v-bind:src="'data:' + [[post.contentType]] + ',' + [[post.content]]" style="width: 100%">
+            <img v-bind:src="'data:' + [[post.contentType]] + ',' + [[post.content]]" style="max-width: 100%">
         </p>
         <div v-else>
-            <span style="overflow-wrap: break-word;" class="mb-1">[[post.sub_content]]</span>
+            <vue-markdown v-if="post.contentType === 'text/markdown'" style="overflow-wrap: break-word;" class="mb-1">[[post.sub_content]]</vue-markdown>
+            <span v-else style="overflow-wrap: break-word;" class="mb-1">[[post.sub_content]]</span>
         </div>
 
         <small>[[post.author.displayName]]</small>
@@ -137,7 +149,7 @@
         props: ['post'],
         template: '#foreign_posts-list'
     });
-
+    Vue.use(VueMarkdown);
     var app = new Vue({
         el: '#app',
         delimiters: ['[[', ']]'],

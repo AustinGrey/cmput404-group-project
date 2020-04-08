@@ -100,8 +100,8 @@
                      <div class="row">
                         <div class="col-md-15 mr-3">
                             <select class="browser-default custom-select">
-                                <option @click="app.set_contentType('text/plain')">Plaintext</option>
                                 <option @click="app.set_contentType('text/markdown')">Markdown</option>
+                                <option @click="app.set_contentType('text/plain')">Plaintext</option>
                             </select>
                         </div>
                      </div>
@@ -118,6 +118,7 @@
                  <div class="col-sm-10" >
                      <comment-list
                      v-for="comment in comments"
+                     :key="comment.commentId"
                      v-bind:comment="comment"
                      :contentType="contentType"
                      >
@@ -189,8 +190,9 @@
            return {
                'comments': [],
                'content':'',
-               'contentType':'',
-               'publishTime':''
+               'contentType':'text/markdown',
+               'publishTime':'',
+               'count':0
            }
         },
         methods:{
@@ -201,12 +203,11 @@
                     for(let item of response.data['comments']){
                         let comment = new Comment(item);
                         comment.published=moment(comment.published.toString()).format("MMMM DD, YYYY, hh:mm a");
-
                         comment.author.uid = comment.author.url;
                         comment.author.uid = comment.author.uid.replace(/http[s]*:\/\//, '');
-
                         this.comments.push(comment);
                     }
+                    this.comments.reverse();
                 });
             },
 
@@ -214,18 +215,13 @@
                 //Add comments, if status code is 200, push this comment into comments(list)
                 let url = 'comments/';
 
-                //If users do not choose contentType, set it to plaintext
-                if(this.contentType===""){
-                    this.contentType="text/plain";
-                }
-
                 //This is used to update the comments list after adding comments
                 let comment = new Comment({
                         'content':this.content,
                         'published':new Date(),
                         'author':{
                             'id':'{{user.uid}}',
-                            'display_name': '{{user.displayName}}',
+                            'displayName': '{{user.display_name}}',
                             'uid': '{{user.id.hex}}'
                         },
                         'contentType':this.contentType,
@@ -243,7 +239,9 @@
                     alert(response.data['message']);
                     if( response.data['success']){
                         comment.published = moment(comment.published.toString()).format("MMMM DD, YYYY, hh:mm a");
-                        this.comments.push(comment);
+                        comment.commentId=this.count;
+                        this.comments.unshift(comment);
+                        this.count++;
                     }
                 })
 

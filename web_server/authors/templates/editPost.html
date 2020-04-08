@@ -11,13 +11,27 @@
                 <input type="hidden" name="author" value={{ post.author }}>
                 <span id="column1">
                     <label for="title">Title</label>
-                    <textarea id="title" name="title" required>{{ post.title }}</textarea>
+                    <textarea id="title" name="title" required>{{post.title}}</textarea>
+
+                    <script type="text/javascript">
+                        document.getElementById('title').innerText = ("{{post.title}}").replace(/&amp;lt;/g, "<").replace(/&amp;gt;/g, ">").replace(/&amp;quot;/g, '"').replace(/&amp;apos;/g, "'").replace(/&amp;amp;/g, '&')
+                    </script>
+
 
                     <label for="description">Description</label>
                     <textarea id="description" name="description" required>{{ post.description }}</textarea>
 
+                    <script type="text/javascript">
+                        document.getElementById('description').innerText = ("{{post.description}}").replace(/&amp;lt;/g, "<").replace(/&amp;gt;/g, ">").replace(/&amp;quot;/g, '"').replace(/&amp;apos;/g, "'").replace(/&amp;amp;/g, '&')
+                    </script>
+
                     <label for="content">Content</label>
                     <textarea id="content" name="content" required>{{ post.content }}</textarea>
+
+                    <script type="text/javascript">
+                        document.getElementById('content').innerText = ("{{post.content}}").replace(/&amp;lt;/g, "<").replace(/&amp;gt;/g, ">").replace(/&amp;quot;/g, '"').replace(/&amp;apos;/g, "'").replace(/&amp;amp;/g, '&')
+                    </script>
+
                 </span>
                 <span id="column2">
                     <label for="categories">Categories</label>

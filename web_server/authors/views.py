@@ -20,6 +20,7 @@ from social_distribution.utils.basic_auth import validate_remote_server_authenti
 from friendship.views import FOAF_verification, sanitize_author_id
 
 import math
+import html
 from django.conf import settings
 
 import requests
@@ -451,16 +452,22 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
         # Post ID's are created automatically in the database
         # new_post.id = post['id']                  #: "de305d54-75b4-431b-adb2-eb6b9e546013",
 
-        #: "A post title about a post about web dev",
-        new_post.title = post['title']
+        # title: "A post title about a post about web dev",
+        # description: "This post discusses stuff -- brief",
+        if (post['contentType'] != "text/markdown"):
+            new_post.title = post['title']
+            new_post.description = post['description']
+
+        else:
+            new_post.title = html.escape(post['title'])
+            new_post.description = html.escape(post['description'])
 
         # Source and origin are the same, and depend on the ID so we wait until after the post gets saved to
         # generate this URLS
         # new_post.source    = post['source']       #: "http://lastplaceigotthisfrom.com/posts/yyyyy"
         # new_post.origin    = post['origin']       #: "http://whereitcamefrom.com/posts/zzzzz"
 
-        # : "This post discusses stuff -- brief",
-        new_post.description = post['description']
+        
 
         # If the post is an image, the content would have been provided as a file along with the upload
         if len(request.FILES) > 0:
@@ -476,13 +483,16 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
                     'msg': f'You uploaded an image with content type: {file_type}, but only one of {allowed_file_type_map.keys()} is allowed'
                 })
 
-            # : "text/plain"
             new_post.contentType = allowed_file_type_map[file_type]
             new_post.content = base64.b64encode(
                 request.FILES['file'].read()).decode('utf-8')
         else:
             new_post.contentType = post['contentType']  # : "text/plain",
-            new_post.content = post['content']      #: "stuffs",
+            if (post['contentType'] != "text/markdown"):
+                new_post.content = post['content']     #: "stuffs",
+            else:
+                new_post.content = html.escape(post['content'])
+            
 
         new_post.author = request.user         # the authenticated user
 
@@ -546,7 +556,6 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
     # Response to a server, servers are considered 'root' and get all posts except for 'SERVERONLY'  and unlisted because
     # they have no reason to see those ones.
     def api_response(request, posts, pager, pagination_uris):
-        print('api response')
         size = min(int(request.GET.get('size', DEFAULT_PAGE_SIZE)), 50)
         output = {
             "query": "posts",
@@ -756,11 +765,14 @@ def get_comments(post_id):
     comments_list = []
     comments = Comment.objects.filter(
         parentPost=post_id).order_by("-published")[:5]
-    size = comments.count()
+
 
     for comment in comments:
-        comments_list.append(comment.to_api_object())
-        # comments_list.append(c)
+        c = comment.to_api_object()
+        if 'error' not in c['author']:
+            comments_list.append(c)
+
+    size = len(comments_list)
 
     return size, comments_list
 
@@ -824,7 +836,11 @@ def post_edit_and_delete(request, post_id):
                                 setattr(post, key, False)
                         else:
                             # All other fields
-                            setattr(post, key, vars.get(key))
+                            if (vars["contentType"] != "text/markdown"):
+                                attr = vars.get(key)
+                            else:
+                                attr = html.escape(vars.get(key))
+                            setattr(post, key, attr)
                     except Exception as e:
                         # @todo remove this try/except block.
                         #  This should ACTUALLY throw an error if we hit a problem here

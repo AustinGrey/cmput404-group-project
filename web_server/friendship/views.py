@@ -332,7 +332,6 @@ def invalidate_friend_requests(author_id):
 # and in the same server
 
 def FOAF_verification(request, author):
-
     auth_user = request.user.uid
     auth_user = url_regex.sub("", auth_user).rstrip("/")
     author = url_regex.sub("", author).rstrip("/")
@@ -341,78 +340,69 @@ def FOAF_verification(request, author):
     if auth_user == author:
         return True
 
-    nodes = [own_node]
-    for node in Node.objects.all():
-        nodes.append(node.foreign_server_hostname)
 
-    for node in nodes:
-        # If the author is a friend of auth user return True
-        if Friend.objects.filter(author_id=auth_user).filter(friend_id=author).exists():
-            return True
+    # If the author is a friend of auth user return True
+    if Friend.objects.filter(author_id=auth_user).filter(friend_id=author).exists():
+        return True
 
-        # not friends so check for FOAF
-        else:
-            # if the author is on the same host as auth user
-            if node == own_node:
-                author_friends = Friend.objects.filter(author_id=author)
-                for friend in author_friends:
-                    # getting the node of the friend
-                    friend_node = friend.friend_id.split("/author/")[0]
-                    friends_uuid = friend.friend_id.split("/author/")[-1]
-                    # if friend of the author is on the same host as the auth user
-                    # A -> A -> A
-                    if friend_node == own_node:
-                        # E.g Test <-> Lara <-> Bob
-                        if Friend.objects.filter(author_id=auth_user).filter(friend_id=friend.friend_id).exists():
-                            return True
-                        else:
-                            return False
 
-                    # Since the friend is not on the same host as the auth user make a request to get friends from the other node
-                    # A -> A -> B
-                    else:
-                        node_object = Node.objects.get(foreign_server_hostname=friend_node)
-                        username = node_object.username_registered_on_foreign_server
-                        password = node_object.password_registered_on_foreign_server
-                        api = node_object.foreign_server_api_location
-                        api = "http://{}/author/{}/friends".format(
-                            api, "{}/author/{}".format(api, author))
-                        if node_object.append_slash:
-                            api = api + "/"
-                        response = requests.get(api,
-                                                auth=(username, password)
-                                                )
-                        if response.status_code == 200:
-                            friends_list = response.json()
-                            for user in friends_list["authors"]:
-                                if Friend.objects.filter(author_id=auth_user).filter(friend_id=user).exists():
-                                    return True
-                                else:
-                                    return False
+    # author is the person that made the post
+    # auth user is the person trying to get the post
+    # author has a friend B
+    # auth user has friend B
+    # there fore FOAF
+    # get the friends of the auth_user (person trying to comment)
+    # and check if there is a friendship between the friend of the auth_user with the author (person that made the post)
+    friends = []
 
-            # author's host is different from auth user
-            else:
-                try:
-                    node_object = Node.objects.get(foreign_server_hostname=node)
-                except Node.DoesNotExist as e:
-                    print(f'attempt to FOAF verify with different foreign node {node} caused error: {e}')
-                    return False
-                username = node_object.username_registered_on_foreign_server
-                password = node_object.password_registered_on_foreign_server
-                api = node_object.foreign_server_api_location
-                if node_object.append_slash:
-                    api = api + "/"
-                response = requests.get(
-                    "http://{}/author/{}/friends".format(api, author),
-                    auth=(username, password)
-                )
-                if response.status_code == 200:
-                    friends_list = response.json()
-                    for user in friends_list["authors"]:
-                        # E.g Test <-> Lara <-> User
-                        if Friend.objects.filter(author_id=auth_user).filter(friend_id=user).exists():
-                            return True
-                        else:
-                            return False
+    auth_user_node = auth_user.split("/author")[0]
+    if auth_user_node == own_node:
+        # getting friends of authorized user
+        auth_user_friends = Friend.objects.filter(author_id=auth_user)
+        for friend in auth_user_friends:
+            friends.append(friend.friend_id)
 
-    return False
+
+    else:
+        try:
+            node_object = Node.objects.get(foreign_server_hostname=auth_user_node)
+        except Node.DoesNotExist as e:
+            # If we do not know their friends node, then we must not try to connect with it,
+            # But we can still consult other friends
+            print(f"Attempt to FOAF verify friend node hostname '{auth_user_node}' but we do not have access to that node.")
+            try:
+                node_object = Node.objects.get(foreign_server_api_location=auth_user_node)
+            except Node.DoesNotExist as e:
+                print(f"Attempt to FOAF verify friend node hostname '{auth_user_node}' but we do not have access to that node.")
+                return False
+        username = node_object.username_registered_on_foreign_server
+        password = node_object.password_registered_on_foreign_server
+        api = node_object.foreign_server_api_location
+        api = "http://{}/author/{}/friends".format(
+            api, "{}/author/{}".format(api, auth_user))
+        if node_object.append_slash:
+            api = api + "/"
+        response = requests.get(api, auth=(username, password))
+
+        if response.status_code != 200:
+            api = node_object.foreign_server_api_location
+            api = "http://{}/author/{}/friends".format(
+                api, auth_user.split("author/")[-1])
+            if node_object.append_slash:
+                api = api + "/"
+
+            response = requests.get(api, auth=(username, password))
+
+        if response.status_code == 200:
+            try:
+                friends_list = response.json()
+            except Exception as e:
+                print(f"Attempt to decode FOAF verification response from '{auth_user_node}' failed")
+                return False
+            for user in friends_list["authors"]:
+                if url_regex.sub("", user).rstrip("/") == url_regex.sub("", author).rstrip("/"):
+                    return True
+
+    return Friend.objects.filter(author_id=author).filter(friend_id__in=friends).exists()
+
+

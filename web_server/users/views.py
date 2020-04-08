@@ -126,30 +126,54 @@ def view_post(request, post_path):
 
     req = node.make_api_get_request(f'posts/{post_id}')
 
-    # Attempt to extract the post
-    try:
-        # Spongebook group is not spec compliant here
-        # Quick adaptor
-        if node.foreign_server_hostname == 'spongebook.herokuapp.com':
-            post = req.json()
-        else:
+    # Attempt to extract the post, theres a lot of different interpretations of the spec floating out there.
+    # Some return bare posts, some return it under a different key
+    while True:
+        try:
+            # Spec compliant
             post = req.json()['posts'][0]
-    except Exception as e:
-        print(req.content)
-        return HttpResponse(f"The foreign server returned a response, but we could not extract the post. Error: {e}",
-                            status=500)
+            break
+        except:
+            pass
+        try:
+            # Bare post in proper key
+            post = req.json()['posts']
+            break
+        except:
+            pass
+        try:
+            # Incorrect key missing an s
+            post = req.json()['post']
+            break
+        except:
+            pass
+        try:
+            # Bare post
+            post = req.json()
+            break
+        except:
+            return HttpResponse("We attempted to grab the post from the foreign server, but the response was not"
+                                f"understandable. The response looks like: {req.content[:20]}",
+                                status=500)
+        break
 
-    # For image posts, we create a special content for direct rendering as an image
-    post['image_content_data'] = 'data:' + post['contentType'] + ',' + post['content']
+    # Some of the servers are incorrectly using 'content_type' instead of 'contentType'
+    if 'content_type' in post and 'contentType' not in post:
+        post['contentType'] = post['content_type']
+
 
     # Attempt to render the post
     try:
+        # For image posts, we create a special content for direct rendering as an image
+        post['image_content_data'] = 'data:' + post['contentType'] + ',' + post['content']
+
         return render(request, 'posts/foreign_post.html', {
             'post': post
         })
     except Exception as e:
         print(post)
-        return HttpResponse(f"The post we extracted from the foreign server has missing or incorrect keys: {e}",
+        return HttpResponse(f"The post you are trying to view is on a foreign server, which responded unexpectedly: {post}"
+                            f". Which is missing values: {e}",
                             status=500)
 
 @login_required
@@ -159,7 +183,6 @@ def view_post_comment(request, post_path):
     The first part of the path should be a hostname, and the last part should be the post id
     If no hostname is provided (no path, only a uuid), then the local server is assumed
     """
-    print("GETTING COMMENT")
     path = post_path.split('/')
     host = path[0]
     post_id = path[-1]
@@ -183,7 +206,6 @@ def view_post_comment(request, post_path):
         req = node.make_api_get_request(f'posts/{post_id}/comments')
         comments_list = []
         for comment in req.json()["comments"]:
-            print("\n\n\n\ncomments = ",comment)
             content = {
                 "author": comment["author"],
                 "content": comment["comment"],
@@ -209,9 +231,7 @@ def view_post_comment(request, post_path):
 
         # author_uid = "{}/author/{}".format(settings.HOSTNAME, comment_info["author"]["id"].replace("-", ""))
         author_uid = url_regex.sub("", comment_info["author"]["id"]).rstrip("/")
-        print("POST FOREIGN", author_uid)
         author = Author.objects.get(uid=author_uid)
-        print("author to api", author.to_api_object())
         output = {
             "query": "addComment",
             "post": "http://"+post_path,
@@ -223,7 +243,6 @@ def view_post_comment(request, post_path):
                 "id": str(uuid4())
             }
         }
-        print("output = ", output)
         try:
             node = Node.objects.get(foreign_server_hostname=host)
         except Node.DoesNotExist as e:
@@ -233,7 +252,6 @@ def view_post_comment(request, post_path):
         api = "http://{}/posts/{}/comments".format(api, post_id)
         if node.append_slash:
             api = api + "/"
-        print("api", api, node)
         response = requests.post(api,
             auth=(node.username_registered_on_foreign_server, node.password_registered_on_foreign_server),
             json=output
