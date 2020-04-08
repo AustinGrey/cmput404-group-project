@@ -452,17 +452,22 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
         # Post ID's are created automatically in the database
         # new_post.id = post['id']                  #: "de305d54-75b4-431b-adb2-eb6b9e546013",
 
-        #: "A post title about a post about web dev",
+        # title: "A post title about a post about web dev",
+        # description: "This post discusses stuff -- brief",
+        if (post['contentType'] != "text/markdown"):
+            new_post.title = post['title']
+            new_post.description = post['description']
 
-        new_post.title = html.escape(post['title'])
+        else:
+            new_post.title = html.escape(post['title'])
+            new_post.description = html.escape(post['description'])
 
         # Source and origin are the same, and depend on the ID so we wait until after the post gets saved to
         # generate this URLS
         # new_post.source    = post['source']       #: "http://lastplaceigotthisfrom.com/posts/yyyyy"
         # new_post.origin    = post['origin']       #: "http://whereitcamefrom.com/posts/zzzzz"
 
-        # : "This post discusses stuff -- brief",
-        new_post.description = html.escape(post['description'])
+        
 
         # If the post is an image, the content would have been provided as a file along with the upload
         if len(request.FILES) > 0:
@@ -478,13 +483,16 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
                     'msg': f'You uploaded an image with content type: {file_type}, but only one of {allowed_file_type_map.keys()} is allowed'
                 })
 
-            # : "text/plain"
             new_post.contentType = allowed_file_type_map[file_type]
             new_post.content = base64.b64encode(
                 request.FILES['file'].read()).decode('utf-8')
         else:
             new_post.contentType = post['contentType']  # : "text/plain",
-            new_post.content = html.escape(post['content'])    #: "stuffs",
+            if (post['contentType'] != "text/markdown"):
+                new_post.content = post['content']     #: "stuffs",
+            else:
+                new_post.content = html.escape(post['content'])
+            
 
         new_post.author = request.user         # the authenticated user
 
@@ -548,7 +556,6 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
     # Response to a server, servers are considered 'root' and get all posts except for 'SERVERONLY'  and unlisted because
     # they have no reason to see those ones.
     def api_response(request, posts, pager, pagination_uris):
-        print('api response')
         size = min(int(request.GET.get('size', DEFAULT_PAGE_SIZE)), 50)
         output = {
             "query": "posts",
@@ -565,6 +572,7 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
 
     # Response for a local user, will get all the posts that the user can see, including friends, and foaf
     def retrieve_posts(request):
+
         # own post
         own_post = Post.objects.filter(
             author_id=request.user.uid, unlisted=False)
@@ -712,7 +720,6 @@ def post_creation_and_retrieval_to_curr_auth_user(request):
                 "next": str(get_page_url(uri, current_page.next_page_number())),
                 "posts": current_page.object_list
             }
-
         return JsonResponse(response_data)
 
     if request.user.is_authenticated:
@@ -758,11 +765,14 @@ def get_comments(post_id):
     comments_list = []
     comments = Comment.objects.filter(
         parentPost=post_id).order_by("-published")[:5]
-    size = comments.count()
+
 
     for comment in comments:
-        comments_list.append(comment.to_api_object())
-        # comments_list.append(c)
+        c = comment.to_api_object()
+        if 'error' not in c['author']:
+            comments_list.append(c)
+
+    size = len(comments_list)
 
     return size, comments_list
 
@@ -826,7 +836,10 @@ def post_edit_and_delete(request, post_id):
                                 setattr(post, key, False)
                         else:
                             # All other fields
-                            attr = html.escape(vars.get(key))
+                            if (vars["contentType"] != "text/markdown"):
+                                attr = vars.get(key)
+                            else:
+                                attr = html.escape(vars.get(key))
                             setattr(post, key, attr)
                     except Exception as e:
                         # @todo remove this try/except block.
@@ -900,59 +913,91 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
         # Author is from different node
         if node != own_node:
             page_num = int(request.GET.get('page', "1"))
+            page = 2
+
+            if node == "dsnfof-test.herokuapp.com":
+                page_num = int(request.GET.get('page', "0"))
+                page = 1
+
             size = min(int(request.GET.get('size', DEFAULT_PAGE_SIZE)), 50)
 
             request_size = 10
-            diff_node = Node.objects.get(foreign_server_hostname=node)
+            api_author_id = author_id.split('/')[-1]
+            try:
+                diff_node = Node.objects.get(foreign_server_hostname=node)
+            except:
+                try:
+                    diff_node = Node.objects.get(foreign_server_api_location=node)
+                except:
+                    response_data = {
+                        "query": "posts",
+                        "count": 0,
+                        "size": int(size),
+                        "posts": []
+
+                    }
+                    return JsonResponse(response_data)
+
             username = diff_node.username_registered_on_foreign_server
             password = diff_node.password_registered_on_foreign_server
             api = diff_node.foreign_server_api_location
+
+            #trying with uid
+            api = "http://{}/author/{}/posts".format(api, author_id)
             if diff_node.append_slash:
-                api = api + "/"
+                api += "/"
+            response = requests.get("{}?size={}&page={}".format(api, request_size, page_num),
+                                    auth=(username, password))
 
-            # Quick fix for dsnfof node to allow viewing authors posts
-            api_author_id = author_id
-            if node == 'dsnfof.herokuapp.com':
-                api_author_id = api_author_id.split('/')[-1]
+            try:
+                posts_list = response.json()
+            except:
+                #trying with just uuid
+                api = diff_node.foreign_server_api_location
+                api = "http://{}/author/{}/posts".format(api, api_author_id)
+                if diff_node.append_slash:
+                    api += "/"
+                response = requests.get("{}?size={}&page={}".format(api, request_size, page_num),
+                                        auth=(username, password))
+                try:
+                    posts_list = response.json()
+                except:
+                    # tried with uid and uuid andn both did not return a json response so returning empty post
+                    response_data = {
+                        "query": "posts",
+                        "count": 0,
+                        "size": int(size),
+                        "posts": []
 
-            response = requests.get(
-                "http://{}/author/{}/posts?size={}&page={}".format(
-                    api, api_author_id, request_size, page_num),
-                auth=(username, password)
-            )
-
-            if response.status_code != 200:
-                response_data = {
-                    "query": "posts",
-                    "count": 0,
-                    "size": int(size),
-                    "posts": []
-
-                }
-                return JsonResponse(response_data)
-
-            posts_list = response.json()
+                    }
+                    return JsonResponse(response_data)
 
             # grabbing all posts
             post_total_num = posts_list["count"]
-            page = 2
-
             if len(posts_list["posts"]) > 0:
                 total_post = [posts_list["posts"]]
             else:
                 total_post = []
             total_post = total_post[0]
 
-            while page <= math.ceil(post_total_num/request_size):
-                response = requests.get(
-                    "http://{}/author/{}/posts?size={}&page={}".format(
-                        api, author_id, request_size, page),
-                    auth=(username, password)
-                )
-                posts_list = response.json()
-                add_post = posts_list["posts"]
-                total_post.append(add_post[0])
-                page = page + 1
+
+            # accounting that dsnfof post page starts a 0
+            if node == "dsnfof-test.herokuapp.com":
+                while page < math.ceil(post_total_num / request_size):
+                    response = requests.get("{}?size={}&page={}".format(api, request_size, page),
+                                            auth=(username, password))
+                    posts_list = response.json()
+                    add_post = posts_list["posts"]
+                    total_post.append(add_post[0])
+                    page = page + 1
+            else:
+                while page <= math.ceil(post_total_num/request_size):
+                    response = requests.get("{}?size={}&page={}".format(api, request_size, page),
+                                            auth=(username, password))
+                    posts_list = response.json()
+                    add_post = posts_list["posts"]
+                    total_post.append(add_post[0])
+                    page = page + 1
 
             viewable_post = []
 
@@ -971,6 +1016,7 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
             pager = Paginator(viewable_post, size)
             uri = request.build_absolute_uri()
 
+            page_num = 1
             if page_num > pager.num_pages:
                 response_data = {
                     "query": "posts",

@@ -3,6 +3,8 @@
 {% block navigation_content %}
 {% load static %}
 
+<script src="{% static 'js/vue-markdown.js' %}"></script>
+
 <div id="app">
     <div class="container-fluid">
         <div class="row">
@@ -101,7 +103,10 @@
     <a :href="'{{ post_view_url }}' + [[post.source_host]] + '/posts/' + [[post.id]]"
         class="list-group-item list-group-item-action flex-column align-items-start">
         <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1">[[post.title]]</h5>
+            <h5 class="mb-1">
+                <vue-markdown v-if="post.contentType === 'text/markdown'">[[post.title]]</vue-markdown>
+                <span v-else>[[post.title]]</span>
+            </h5>
             <small>[[post.published]]</small>
         </div>
         <p v-if="post.contentType == 'image/png;base64'" class="mb-1">
@@ -111,7 +116,8 @@
             <img v-bind:src="'data:' + [[post.contentType]] + ',' + [[post.content]]">
         </p>
         <div v-else style="height: 8vh; overflow: auto">
-            <p class="mb-1">[[post.content]]</p>
+            <vue-markdown v-if="post.contentType === 'text/markdown'" style="overflow-wrap: break-word;" class="mb-1">[[post.content]]</vue-markdown>
+            <span v-else style="overflow-wrap: break-word;" class="mb-1">[[post.content]]</span>
         </div>
         <small>[[post.author.displayName]]</small>
     </a>
@@ -206,6 +212,7 @@
         props: ['post', 'myposts'],
         template: '#user-posts'
     });
+    Vue.use(VueMarkdown);
 
     class Friend {
         constructor(uid, displayName, host) {

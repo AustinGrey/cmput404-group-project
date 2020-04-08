@@ -104,6 +104,13 @@ class Post(models.Model):
         for visible in visible_to:
             visible_to_list.append("http://"+visible.author_uid)
 
+        # We only get the first 5 comments
+        # Get the comments, be aware that comments might not be returned if the foreign author of the comment is unavailable
+        comments_list = [comment.to_api_object() for comment in self.comment_set.all().order_by("-published")[:5]]
+        filtered_comments_list = [comment for comment in comments_list if 'error' not in comment['author']]
+
+
+
         return {
             "title": self.title,
             "source": self.source,
@@ -113,11 +120,10 @@ class Post(models.Model):
             "content": self.content,
             "author": self.author.to_api_object(),
             "categories": [category.name for category in self.categories.all()],
-            "count": self.comment_set.count(),
+            "count": len(filtered_comments_list),
             "size": self.size,
             "next": settings.HOST_URI + "/posts/" + str(self.id.hex) + "/comments",
-            # We only get the first 5 comments
-            "comments": [comment.to_api_object() for comment in self.comment_set.all().order_by("-published")[:5]],
+            "comments": filtered_comments_list,
             "published": self.published,
             "id": str(self.id.hex),
             "visibility": self.visibility,
