@@ -340,7 +340,7 @@ def FOAF_verification(request, author):
     # Some foreign servers might put dashes into their author uuids, we need to compare against both
     author_dash_free = author.split('/')
     author_dash_free[-1] = re.sub('-', '', author_dash_free[-1])
-    author_dash_free = ''.join(author_dash_free)
+    author_dash_free = '/'.join(author_dash_free)
 
     if author != author_dash_free:
         print(f"Removing dashes from author id, {author} -> {author_dash_free}")
