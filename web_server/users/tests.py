@@ -114,10 +114,10 @@ class TestAuthorModels(TestCase):
         display_name = "TestAuthorModels"
         github = "github.com"
         test_dic = {
-            "id": uid,
-            "host": host,
+            "id": "https://"+uid,
+            "host": "https://"+host,
             "displayName": display_name,
-            "url": uid,
+            "url": "https://"+uid,
             "github": github
         }
 

@@ -175,8 +175,6 @@
         <div class="row justify-content-between">
             <button v-if="!is_visitor" class="btn btn-outline-primary ml-3"
                 @click="app.edit('{{ user.id.hex }}')">Edit</button>
-            <button v-if="!is_visitor" class="btn btn-outline-danger mr-3"
-                @click="app.delete_account('{{ user.id.hex }}')">Delete My Account</button>
         </div>
     </div>
 </template>
@@ -408,26 +406,6 @@
                 });
             },
 
-            //This function is used to allow users delete their account
-            delete_account(user_id) {
-
-                window.axios.post("/author/" + user_id + "/update", {
-                    'delete': true,
-                    'first_name': this.user.firstName,
-                    'last_name': this.user.lastName,
-                    'email': this.user.email,
-                    'bio': this.user.bio,
-                    'github': this.user.github,
-                    'display_name': this.user.displayName
-
-                }).then((response) => {
-                    if (response.status >= 200 && response.status < 300) {
-                        alert("Delete successfully !");
-                        window.location.reload();
-                    }
-                });
-            },
-
             show_page(name) {
                 this.show[name] = true;
                 for (let key in this.show) {
@@ -457,7 +435,7 @@
                 }).then((response) => {
                     alert(response.data);
                 }).catch((err => {
-                    alert("You already followed this user/ You already sent the friend request.");
+                    alert("You already followed this user/ You already sent the friend request/You already has this friend.");
                 }));
             },
 
