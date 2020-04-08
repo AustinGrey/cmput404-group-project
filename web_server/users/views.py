@@ -171,7 +171,6 @@ def view_post(request, post_path):
             'post': post
         })
     except Exception as e:
-        print(post)
         return HttpResponse(f"The post you are trying to view is on a foreign server, which responded unexpectedly: {post}"
                             f". Which is missing values: {e}",
                             status=500)
