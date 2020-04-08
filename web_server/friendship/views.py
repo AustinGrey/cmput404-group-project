@@ -345,6 +345,8 @@ def FOAF_verification(request, author):
     # If the author is a friend of auth user return True
     if Friend.objects.filter(author_id=auth_user).filter(friend_id=author).exists():
         return True
+    else:
+        print(f"Users are not friends, filtered for author_id='{auth_user}' and friend_id='{author}'")
 
 
     # author is the person that made the post
