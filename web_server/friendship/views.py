@@ -10,6 +10,7 @@ import base64
 import requests
 from uuid import UUID
 from social_distribution.utils.basic_auth import validate_remote_server_authentication
+from social_distribution.utils.author_id_utils import author_id_strip_dashes
 from urllib.parse import quote
 url_regex = re.compile(r"(http(s?))?://")
 
@@ -338,12 +339,9 @@ def FOAF_verification(request, author):
     author = url_regex.sub("", author).rstrip("/")
 
     # Some foreign servers might put dashes into their author uuids, we need to compare against both
-    author_dash_free = author.split('/')
-    author_dash_free[-1] = re.sub('-', '', author_dash_free[-1])
-    author_dash_free = '/'.join(author_dash_free)
-
+    author_dash_free = author_id_strip_dashes(author)
     if author != author_dash_free:
-        print(f"Removing dashes from author id, {author} -> {author_dash_free}")
+        # print(f"Removing dashes from author id, {author} -> {author_dash_free}")
         author = author_dash_free
 
     own_node = request.get_host()
@@ -412,9 +410,9 @@ def FOAF_verification(request, author):
                 print(f"Attempt to decode FOAF verification response from '{auth_user_node}' failed")
                 return False
             for user in friends_list["authors"]:
-                if url_regex.sub("", user).rstrip("/") == url_regex.sub("", author).rstrip("/"):
+                # Remove dashes as well for comparison since we dont store dashes and the foreign server may
+                user_dash_free = author_id_strip_dashes(url_regex.sub("", user).rstrip("/"))
+                if user_dash_free == url_regex.sub("", author).rstrip("/"):
                     return True
 
     return Friend.objects.filter(author_id=author).filter(friend_id__in=friends).exists()
-
-
