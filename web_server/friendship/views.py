@@ -10,6 +10,7 @@ import base64
 import requests
 from uuid import UUID
 from social_distribution.utils.basic_auth import validate_remote_server_authentication
+from social_distribution.utils.author_id_utils import author_id_strip_dashes
 from urllib.parse import quote
 url_regex = re.compile(r"(http(s?))?://")
 
@@ -332,9 +333,16 @@ def invalidate_friend_requests(author_id):
 # and in the same server
 
 def FOAF_verification(request, author):
+    print(f"FOAF VERIFYING FOR: {request.user.uid} - {author}")
     auth_user = request.user.uid
     auth_user = url_regex.sub("", auth_user).rstrip("/")
     author = url_regex.sub("", author).rstrip("/")
+
+    # Some foreign servers might put dashes into their author uuids, we need to compare against both
+    author_dash_free = author_id_strip_dashes(author)
+    if author != author_dash_free:
+        # print(f"Removing dashes from author id, {author} -> {author_dash_free}")
+        author = author_dash_free
 
     own_node = request.get_host()
     if auth_user == author:
@@ -344,6 +352,8 @@ def FOAF_verification(request, author):
     # If the author is a friend of auth user return True
     if Friend.objects.filter(author_id=auth_user).filter(friend_id=author).exists():
         return True
+    else:
+        print(f"Users are not friends, filtered for author_id='{auth_user}' and friend_id='{author}'")
 
 
     # author is the person that made the post
@@ -400,9 +410,9 @@ def FOAF_verification(request, author):
                 print(f"Attempt to decode FOAF verification response from '{auth_user_node}' failed")
                 return False
             for user in friends_list["authors"]:
-                if url_regex.sub("", user).rstrip("/") == url_regex.sub("", author).rstrip("/"):
+                # Remove dashes as well for comparison since we dont store dashes and the foreign server may
+                user_dash_free = author_id_strip_dashes(url_regex.sub("", user).rstrip("/"))
+                if user_dash_free == url_regex.sub("", author).rstrip("/"):
                     return True
 
     return Friend.objects.filter(author_id=author).filter(friend_id__in=friends).exists()
-
-

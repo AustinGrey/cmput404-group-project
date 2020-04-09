@@ -933,7 +933,8 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
                         "query": "posts",
                         "count": 0,
                         "size": int(size),
-                        "posts": []
+                        "posts": [],
+                        "error": f"No Node that we could query with hostname or api location: {node}"
 
                     }
                     return JsonResponse(response_data)
@@ -952,6 +953,7 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
             try:
                 posts_list = response.json()
             except:
+                error_author_id = f"Unable to get posts using endpoint '{api}': {response.status_code} - {response.content}"
                 #trying with just uuid
                 api = diff_node.foreign_server_api_location
                 api = "http://{}/author/{}/posts".format(api, api_author_id)
@@ -962,13 +964,14 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
                 try:
                     posts_list = response.json()
                 except:
-                    # tried with uid and uuid andn both did not return a json response so returning empty post
+                    # tried with uid and uuid and both did not return a json response so returning empty post
                     response_data = {
                         "query": "posts",
                         "count": 0,
                         "size": int(size),
-                        "posts": []
-
+                        "posts": [],
+                        "error": error_author_id +
+                                 f"Unable to get posts using endpoint '{api}': {response.status_code} - {response.content}"
                     }
                     return JsonResponse(response_data)
 
@@ -981,7 +984,7 @@ def retrieve_posts_of_author_id_visible_to_current_auth_user(request, author_id)
             total_post = total_post[0]
 
 
-            # accounting that dsnfof post page starts a 0
+            # accounting that dsnfof post page starts at 0
             if node == "dsnfof-test.herokuapp.com":
                 while page < math.ceil(post_total_num / request_size):
                     response = requests.get("{}?size={}&page={}".format(api, request_size, page),
