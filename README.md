@@ -3,6 +3,8 @@ Group project for the 404, team EarlyBirds
 
 Website URL: https://cmput404-group-project-mandala.herokuapp.com/
 
+This project is now archived. It was for a university assignment and while a worthwhile exercise has little continuing value.
+
 # Documentation
 ### Documentation can be found on our GitHub Wiki or from the links below
 [Endpoint Documentation](https://github.com/AustinGrey/cmput404-group-project/wiki/Endpoints-Documentation)<br>
